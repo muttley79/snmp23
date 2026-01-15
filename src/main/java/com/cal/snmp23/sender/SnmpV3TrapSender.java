@@ -33,21 +33,18 @@ public class SnmpV3TrapSender {
 
         SecurityProtocols protocols = SecurityProtocols.getInstance();
         protocols.addDefaultProtocols();
-
-        // Explicitly add SHA since addDefaultProtocols() didn't add it
         protocols.addAuthenticationProtocol(new AuthSHA());
         protocols.addAuthenticationProtocol(new AuthMD5());
 
-        // Verify protocols
-        logger.info("SHA available: {}", protocols.getAuthenticationProtocol(AuthSHA.ID));
-        logger.info("AES available: {}", protocols.getPrivacyProtocol(PrivAES128.ID));
-
         TransportMapping<?> transport = new DefaultUdpTransportMapping();
-
         MessageDispatcher dispatcher = new MessageDispatcherImpl();
 
-        OctetString localEngineId = new OctetString(MPv3.createLocalEngineID());
-        usm = new USM(protocols, localEngineId, 0);
+        // --- FIX: SET THE ENGINE ID MANUALLY HERE ---
+        // Use your parseEngineId method to get the bytes from your hex string
+        OctetString customEngineId = parseEngineId(config.engineId());
+
+        // Initialize USM with YOUR custom Engine ID instead of a generated one
+        usm = new USM(protocols, customEngineId, 0);
         SecurityModels.getInstance().addSecurityModel(usm);
 
         dispatcher.addMessageProcessingModel(new MPv3(usm));
@@ -55,7 +52,7 @@ public class SnmpV3TrapSender {
         snmp = new Snmp(dispatcher, transport);
         transport.listen();
 
-        logger.info("SNMPv3 trap sender initialized");
+        logger.info("SNMPv3 trap sender initialized with EngineID: {}", customEngineId.toHexString());
     }
 
     public void sendTrap(TrapEvent trapEvent) {

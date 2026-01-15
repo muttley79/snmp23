@@ -21,7 +21,7 @@ class EndToEndForwardingTest {
                 .build();
 
         SnmpV3Config senderConfig = SnmpV3Config.builder()
-                .targetHost("192.168.9.202")
+                .targetHost("192.168.9.7")
                 .targetPort(162)
                 .username("AUTHENTICv3")
                 .authPassword("Test1234!")
