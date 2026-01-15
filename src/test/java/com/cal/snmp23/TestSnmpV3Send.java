@@ -51,7 +51,12 @@ class EndToEndForwardingTest {
         try {
             PDU pdu = new PDU();
             pdu.setType(PDU.TRAP);
-            pdu.add(new VariableBinding(SnmpConstants.sysUpTime, new TimeTicks(5000)));
+            // Define this at the class level when the app starts
+//            long startTime = System.currentTimeMillis();
+//            // Inside sendTrap:
+//            long uptimeCentiseconds = (System.currentTimeMillis() - startTime) / 10;
+//            pdu.add(new VariableBinding(SnmpConstants.sysUpTime, new TimeTicks(uptimeCentiseconds)));
+////            pdu.add(new VariableBinding(SnmpConstants.sysUpTime, new TimeTicks(5000)));
             pdu.add(new VariableBinding(SnmpConstants.snmpTrapOID, new OID("1.3.6.1.2.1.1331.11.1.152.0")));
             pdu.add(new VariableBinding(
                     new OID("1.3.6.1.2.1.1331.11.1.152.1"),

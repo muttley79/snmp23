@@ -22,6 +22,7 @@ public class SnmpV3TrapSender {
     private Snmp snmp;
     private USM usm;
     private final Set<String> registeredUsers = new HashSet<>();
+    long startTime = System.currentTimeMillis();
 
     public SnmpV3TrapSender(SnmpV3Config config) {
         this.config = config;
@@ -65,7 +66,9 @@ public class SnmpV3TrapSender {
 
             ScopedPDU pdu = new ScopedPDU();
             pdu.setType(PDU.NOTIFICATION);
-            pdu.add(new VariableBinding(SnmpConstants.sysUpTime, new TimeTicks(5000)));
+            long uptimeCentiseconds = (System.currentTimeMillis() - startTime) / 10;
+            pdu.add(new VariableBinding(SnmpConstants.sysUpTime, new TimeTicks(uptimeCentiseconds)));
+            //pdu.add(new VariableBinding(SnmpConstants.sysUpTime, new TimeTicks(5000)));
             pdu.add(new VariableBinding(SnmpConstants.snmpTrapOID, getTrapOid(trapEvent)));
 
             for (VariableBinding vb : trapEvent.getVariableBindings()) {
@@ -80,7 +83,6 @@ public class SnmpV3TrapSender {
             target.setVersion(SnmpConstants.version3);
             target.setSecurityLevel(SecurityLevel.AUTH_PRIV);
             target.setSecurityName(secName);
-            System.err.println(secName);
             target.setAuthoritativeEngineID(targetEngineId.getValue());
             target.setTimeout(2000);
             target.setRetries(1);
