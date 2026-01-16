@@ -1,2 +1,2 @@
   sudo snmptrapd -f -Lo -n -d
-  # Test commit
+  # Test committ
