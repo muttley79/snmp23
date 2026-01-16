@@ -4,14 +4,15 @@ import com.cal.snmp23.config.ListenerConfig;
 import com.cal.snmp23.config.SnmpV3Config;
 import com.cal.snmp23.listener.SnmpTrapListener;
 import com.cal.snmp23.sender.SnmpV3TrapSender;
+import com.cal.snmp23.service.EngineStateManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
 
-/**
- * Main application that forwards SNMP v1/v2c traps to SNMPv3.
- */
 public class SnmpForwarderApplication {
     private static final Logger logger = LoggerFactory.getLogger(SnmpForwarderApplication.class);
 
@@ -23,82 +24,61 @@ public class SnmpForwarderApplication {
         this.sender = new SnmpV3TrapSender(senderConfig);
     }
 
-    /**
-     * Starts the forwarder application.
-     */
-    public void start() throws IOException {
+    public void start(int bootCount) throws IOException {
         logger.info("Starting SNMP Trap Forwarder");
 
-        // Initialize sender
-        sender.initialize();
+        sender.initialize(bootCount);
 
-        // Register trap handler to forward received traps
         listener.registerTrapHandler(trapEvent -> {
             logger.info("Received trap event: {}", trapEvent);
             sender.sendTrap(trapEvent);
         });
 
-        // Start listener
         listener.start();
-
         logger.info("SNMP Trap Forwarder started successfully");
     }
 
-    /**
-     * Stops the forwarder application.
-     */
     public void stop() throws IOException {
-        logger.info("Stopping SNMP Trap Forwarder");
-
         listener.stop();
         sender.close();
-
-        logger.info("SNMP Trap Forwarder stopped");
     }
 
-    /**
-     * Main entry point.
-     */
     public static void main(String[] args) {
-        try {
-            // Configuration - in production, load from config file or environment
+        Properties props = new Properties();
+        String configPath = (args.length > 0) ? args[0] : "application.properties";
+        try (InputStream input = new FileInputStream(configPath)) {
+            props.load(input);
+
             ListenerConfig listenerConfig = ListenerConfig.builder()
-                    .bindAddress("0.0.0.0")
-                    .listenPort(1162)  // Use non-privileged port for testing
+                    .bindAddress(props.getProperty("listener.bindAddress", "0.0.0.0"))
+                    .listenPort(Integer.parseInt(props.getProperty("listener.port", "1162")))
                     .build();
 
             SnmpV3Config senderConfig = SnmpV3Config.builder()
-                    .targetHost("192.168.9.7")
-                    .targetPort(162)
-                    .username("AUTHENTICv3")
-                    .authPassword("Test1234!")
-                    .privPassword("Test1234!")
-                    .engineId("0x8000047304434b4d39383736353433323130")
-                    .authProtocol(SnmpV3Config.AuthProtocol.SHA)
-                    .privProtocol(SnmpV3Config.PrivProtocol.AES)
+                    .targetHost(props.getProperty("v3.targetHost"))
+                    .targetPort(Integer.parseInt(props.getProperty("v3.targetPort", "162")))
+                    .username(props.getProperty("v3.username"))
+                    .authPassword(props.getProperty("v3.authPassword"))
+                    .privPassword(props.getProperty("v3.privPassword"))
+                    .engineId(props.getProperty("v3.engineId"))
+                    .authProtocol(SnmpV3Config.AuthProtocol.valueOf(props.getProperty("v3.authProtocol", "SHA")))
+                    .privProtocol(SnmpV3Config.PrivProtocol.valueOf(props.getProperty("v3.privProtocol", "AES")))
                     .build();
+
+            EngineStateManager stateManager = new EngineStateManager(props.getProperty("state.file", "engine-state.json"));
+            int boots = stateManager.incrementAndGetBoots(senderConfig.engineId());
 
             SnmpForwarderApplication app = new SnmpForwarderApplication(listenerConfig, senderConfig);
 
-            // Add shutdown hook
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    app.stop();
-                } catch (IOException e) {
-                    logger.error("Error during shutdown", e);
-                }
+                try { app.stop(); } catch (IOException e) { logger.error("Shutdown error", e); }
             }));
 
-            // Start application
-            app.start();
-
-            logger.info("SNMP Trap Forwarder is running. Press Ctrl+C to stop.");
-
-            // Keep application running
+            app.start(boots);
             Thread.currentThread().join();
 
         } catch (Exception e) {
-            logger.error("Fatal error in SNMP Trap Forwarder", e);
+            logger.error("Fatal error", e);
             System.exit(1);
         }
     }

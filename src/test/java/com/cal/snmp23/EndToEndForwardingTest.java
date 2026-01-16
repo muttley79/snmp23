@@ -2,6 +2,7 @@ package com.cal.snmp23;
 
 import com.cal.snmp23.config.ListenerConfig;
 import com.cal.snmp23.config.SnmpV3Config;
+import com.cal.snmp23.service.EngineStateManager;
 import org.junit.jupiter.api.Test;
 import org.snmp4j.CommunityTarget;
 import org.snmp4j.PDU;
@@ -31,13 +32,19 @@ class EndToEndForwardingTest {
                 .privProtocol(SnmpV3Config.PrivProtocol.AES)
                 .build();
 
+        // 1. Initialize the manager to track state even during tests
+        EngineStateManager stateManager = new EngineStateManager("engine-state-test.json");
+
+        // 2. Get the incremented boot count for this specific engine ID
+        int boots = stateManager.incrementAndGetBoots(senderConfig.engineId());
+
         SnmpForwarderApplication app = new SnmpForwarderApplication(listenerConfig, senderConfig);
-        app.start();
+
+        // 3. Pass the dynamic boot count instead of hardcoded 1
+        app.start(boots);
 
         Thread.sleep(1000);
-
         sendTestTrap(11162);
-
         Thread.sleep(2000);
 
         app.stop();
@@ -51,24 +58,16 @@ class EndToEndForwardingTest {
         try {
             PDU pdu = new PDU();
             pdu.setType(PDU.TRAP);
-            // Define this at the class level when the app starts
-//            long startTime = System.currentTimeMillis();
-//            // Inside sendTrap:
-//            long uptimeCentiseconds = (System.currentTimeMillis() - startTime) / 10;
-//            pdu.add(new VariableBinding(SnmpConstants.sysUpTime, new TimeTicks(uptimeCentiseconds)));
-////            pdu.add(new VariableBinding(SnmpConstants.sysUpTime, new TimeTicks(5000)));
             pdu.add(new VariableBinding(SnmpConstants.snmpTrapOID, new OID("1.3.6.1.2.1.1331.11.1.152.0")));
             pdu.add(new VariableBinding(
                     new OID("1.3.6.1.2.1.1331.11.1.152.1"),
-                    new OctetString("MACHINE:saf-prdautapp53.saf-prd.icc.corp; EVENT:BATCH_SUCCESS_WITH_ERRORS B0010")
+                    new OctetString("TEST TRAP - BOOT COUNT CHECK")
             ));
 
             CommunityTarget target = new CommunityTarget();
             target.setCommunity(new OctetString("public"));
             target.setAddress(new UdpAddress("127.0.0.1/" + port));
             target.setVersion(SnmpConstants.version2c);
-            target.setTimeout(1000);
-            target.setRetries(0);
 
             snmp.send(pdu, target);
         } finally {

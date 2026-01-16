@@ -22,30 +22,33 @@ public class SnmpV3TrapSender {
     private Snmp snmp;
     private USM usm;
     private final Set<String> registeredUsers = new HashSet<>();
-    long startTime = System.currentTimeMillis();
+    private final long startTime = System.currentTimeMillis();
 
     public SnmpV3TrapSender(SnmpV3Config config) {
         this.config = config;
     }
 
-    public void initialize() throws IOException {
+    public void initialize(int engineBoots) throws IOException {
         logger.info("Initializing SNMPv3 trap sender for target {}:{}",
                 config.targetHost(), config.targetPort());
 
         SecurityProtocols protocols = SecurityProtocols.getInstance();
         protocols.addDefaultProtocols();
+        // RESTORED: Explicitly adding protocols to ensure SecurityLevel.AUTH_PRIV works
         protocols.addAuthenticationProtocol(new AuthSHA());
         protocols.addAuthenticationProtocol(new AuthMD5());
+        protocols.addPrivacyProtocol(new PrivAES128());
+        protocols.addPrivacyProtocol(new PrivAES192());
+        protocols.addPrivacyProtocol(new PrivAES256());
+        protocols.addPrivacyProtocol(new PrivDES());
 
         TransportMapping<?> transport = new DefaultUdpTransportMapping();
         MessageDispatcher dispatcher = new MessageDispatcherImpl();
 
-        // --- FIX: SET THE ENGINE ID MANUALLY HERE ---
-        // Use your parseEngineId method to get the bytes from your hex string
         OctetString customEngineId = parseEngineId(config.engineId());
 
-        // Initialize USM with YOUR custom Engine ID instead of a generated one
-        usm = new USM(protocols, customEngineId, 0);
+        // Use the persisted boot count from JSON
+        usm = new USM(protocols, customEngineId, engineBoots);
         SecurityModels.getInstance().addSecurityModel(usm);
 
         dispatcher.addMessageProcessingModel(new MPv3(usm));
@@ -53,7 +56,8 @@ public class SnmpV3TrapSender {
         snmp = new Snmp(dispatcher, transport);
         transport.listen();
 
-        logger.info("SNMPv3 trap sender initialized with EngineID: {}", customEngineId.toHexString());
+        logger.info("SNMPv3 trap sender initialized with EngineID: {} and Boots: {}",
+                customEngineId.toHexString(), engineBoots);
     }
 
     public void sendTrap(TrapEvent trapEvent) {
@@ -61,14 +65,12 @@ public class SnmpV3TrapSender {
             OctetString targetEngineId = parseEngineId(config.engineId());
             OctetString secName = new OctetString(config.username());
 
-            // 5. Ensure the user is localized for the target
             ensureUserRegistered(secName, targetEngineId);
 
             ScopedPDU pdu = new ScopedPDU();
             pdu.setType(PDU.NOTIFICATION);
             long uptimeCentiseconds = (System.currentTimeMillis() - startTime) / 10;
             pdu.add(new VariableBinding(SnmpConstants.sysUpTime, new TimeTicks(uptimeCentiseconds)));
-            //pdu.add(new VariableBinding(SnmpConstants.sysUpTime, new TimeTicks(5000)));
             pdu.add(new VariableBinding(SnmpConstants.snmpTrapOID, getTrapOid(trapEvent)));
 
             for (VariableBinding vb : trapEvent.getVariableBindings()) {
@@ -98,8 +100,6 @@ public class SnmpV3TrapSender {
     private synchronized void ensureUserRegistered(OctetString secName, OctetString engineId) {
         String userKey = secName.toString() + ":" + engineId.toHexString();
         if (!registeredUsers.contains(userKey)) {
-            logger.info("Localizing user '{}' for remote EngineID {}", secName, engineId.toHexString());
-
             UsmUser user = new UsmUser(
                     secName,
                     getAuthProtocolOid(config.authProtocol()),
@@ -108,14 +108,7 @@ public class SnmpV3TrapSender {
                     new OctetString(config.privPassword())
             );
 
-            // Add user to our tracked USM instance
             snmp.getUSM().addUser(secName, user);
-            UsmUserEntry added = snmp.getUSM().getUser(new OctetString(), secName);
-            if (added != null) {
-                logger.info("User added - Auth: {}, Priv: {}",
-                        added.getUsmUser().getAuthenticationProtocol(),
-                        added.getUsmUser().getPrivacyProtocol());
-            }
             registeredUsers.add(userKey);
         }
     }
