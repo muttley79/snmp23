@@ -1,0 +1,1 @@
+  sudo snmptrapd -f -Lo -n -d
