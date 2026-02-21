@@ -1,4 +1,4 @@
-package com.cal.snmp23.config;
+package com.arnonse.snmp23.config;
 
 /**
  * Configuration for SNMP trap listener.

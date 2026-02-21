@@ -1,4 +1,4 @@
-package com.cal.snmp23.service;
+package com.arnonse.snmp23.service;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

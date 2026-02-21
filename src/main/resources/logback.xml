@@ -16,7 +16,7 @@
         </encoder>
     </appender>
 
-    <logger name="com.cal.snmp23" level="DEBUG"/>
+    <logger name="com.arnonse.snmp23" level="DEBUG"/>
     <logger name="org.snmp4j" level="INFO"/>
 
     <root level="INFO">

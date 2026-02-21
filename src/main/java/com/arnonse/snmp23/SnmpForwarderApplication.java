@@ -1,10 +1,10 @@
-package com.cal.snmp23;
+package com.arnonse.snmp23;
 
-import com.cal.snmp23.config.ListenerConfig;
-import com.cal.snmp23.config.SnmpV3Config;
-import com.cal.snmp23.listener.SnmpTrapListener;
-import com.cal.snmp23.sender.SnmpV3TrapSender;
-import com.cal.snmp23.service.EngineStateManager;
+import com.arnonse.snmp23.config.ListenerConfig;
+import com.arnonse.snmp23.config.SnmpV3Config;
+import com.arnonse.snmp23.listener.SnmpTrapListener;
+import com.arnonse.snmp23.sender.SnmpV3TrapSender;
+import com.arnonse.snmp23.service.EngineStateManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

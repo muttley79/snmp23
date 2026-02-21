@@ -1,4 +1,4 @@
-package com.cal.snmp23.model;
+package com.arnonse.snmp23.model;
 
 import org.junit.jupiter.api.Test;
 import org.snmp4j.PDU;

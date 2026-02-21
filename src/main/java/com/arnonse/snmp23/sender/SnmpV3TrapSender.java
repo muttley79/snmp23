@@ -1,7 +1,7 @@
-package com.cal.snmp23.sender;
+package com.arnonse.snmp23.sender;
 
-import com.cal.snmp23.config.SnmpV3Config;
-import com.cal.snmp23.model.TrapEvent;
+import com.arnonse.snmp23.config.SnmpV3Config;
+import com.arnonse.snmp23.model.TrapEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.snmp4j.*;
